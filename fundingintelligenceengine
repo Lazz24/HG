@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Funding Intelligence Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #09130a;
+  --surf:     #0e1a0f;
+  --surf2:    #121e13;
+  --border:   #182c1a;
+  --border2:  #1e3520;
+  --gold:     #c8a84b;
+  --gold2:    rgba(200,168,75,0.12);
+  --gold3:    rgba(200,168,75,0.3);
+  --text:     #e0d9cc;
+  --muted:    #698c6e;
+  --dim:      #2f4d32;
+  --green:    #58b068;
+  --amber:    #d47a35;
+  --radius:   7px;
+}
+
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: .4;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 24px 100px;
+}
+
+.header { text-align: center; margin-bottom: 52px; }
+
+.eyebrow {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold3);
+  padding: 5px 14px;
+  border-radius: 2px;
+  margin-bottom: 18px;
+}
+
+.header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(34px, 6vw, 56px);
+  font-weight: 600;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  letter-spacing: -.01em;
+}
+.header h1 span { color: var(--gold); }
+
+.header p {
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--muted);
+  max-width: 360px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+.input-card {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
+}
+.input-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold3), transparent);
+}
+
+.input-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+.input-row { display: flex; gap: 10px; }
+
+.url-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 13px 16px;
+  color: var(--text);
+  font-family: 'DM Mono', 'Courier New', monospace;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color .2s;
+  min-width: 0;
+}
+.url-input::placeholder { color: var(--dim); }
+.url-input:focus { border-color: var(--gold3); }
+
+.analyze-btn {
+  background: var(--gold);
+  color: var(--bg);
+  border: none;
+  border-radius: 5px;
+  padding: 13px 24px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, transform .15s;
+  flex-shrink: 0;
+}
+.analyze-btn:hover:not(:disabled) { background: #d4b55e; transform: translateY(-1px); }
+.analyze-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+.saved-ok {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--green);
+  background: rgba(88,176,104,.07);
+  border: 1px solid rgba(88,176,104,.2);
+  border-radius: 4px;
+  padding: 5px 12px;
+  margin-top: 12px;
+  width: fit-content;
+}
+.saved-ok.show { display: flex; }
+
+.loader {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: 64px 0;
+  gap: 16px;
+}
+.loader.show { display: flex; }
+
+.ring {
+  width: 36px; height: 36px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loader-lbl { font-size: 11px; color: var(--muted); letter-spacing: .15em; }
+.steps { display: flex; flex-direction: column; gap: 4px; text-align: center; margin-top: 4px; }
+.stp { font-size: 11px; color: var(--dim); transition: color .3s; }
+.stp.on { color: var(--gold); }
+.stp.ok { color: var(--muted); }
+.stp.ok::before { content: '✓ '; }
+.stp.on::before { content: '› '; }
+
+.err-box {
+  display: none;
+  background: #100a0a;
+  border: 1px solid #5a1f1f;
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  font-size: 13px;
+  color: #c07070;
+  line-height: 1.6;
+  text-align: center;
+}
+.err-box.show { display: block; }
+
+.results { display: none; animation: fadeUp .4s ease; }
+.results.show { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.grant-head {
+  background: linear-gradient(135deg, var(--surf), #102214);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 22px 26px;
+  border-bottom: 1px solid rgba(200,168,75,.15);
+  position: relative;
+  overflow: hidden;
+}
+.grant-head::after {
+  content: '';
+  position: absolute;
+  right: -30px; top: -30px;
+  width: 130px; height: 130px;
+  background: radial-gradient(circle, rgba(200,168,75,.06), transparent 70%);
+  pointer-events: none;
+}
+
+.grant-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 21px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.25;
+}
+
+.meta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.meta-chip { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.meta-chip .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+
+.score-row {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-top: none;
+  padding: 16px 26px;
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+.sc { display: flex; flex-direction: column; gap: 2px; }
+.sc-lbl { font-size: 9px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.sc-val { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 700; color: var(--gold); line-height: 1; }
+.sc-val sub { font-size: 14px; color: var(--dim); font-family: 'Outfit', sans-serif; }
+.sc-val.hi { color: var(--green); }
+.sc-val.lo { color: var(--amber); }
+.sc-val.sm { font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 400; padding-top: 6px; }
+
+.accordion {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+details { border-bottom: 1px solid #111d12; }
+details:last-child { border-bottom: none; }
+
+summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 24px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+summary::-webkit-details-marker { display: none; }
+
+.s-icon {
+  width: 26px; height: 26px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+.s-title { flex: 1; font-size: 10px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
+.s-arrow { color: var(--dim); font-size: 14px; transition: transform .2s; }
+details[open] .s-arrow { transform: rotate(180deg); }
+
+.acc-body {
+  padding: 0 24px 20px 60px;
+  font-size: 13.5px;
+  line-height: 1.74;
+  color: #92aa94;
+}
+.acc-body p { margin-bottom: 6px; }
+.acc-body ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.acc-body li { padding-left: 14px; position: relative; }
+.acc-body li::before { content: '›'; position: absolute; left: 0; color: var(--gold); font-weight: 700; }
+
+.cl li { display: flex; align-items: flex-start; gap: 9px; padding-left: 0 !important; }
+.cl li::before { display: none !important; }
+.cb {
+  width: 15px; height: 15px; flex-shrink: 0; margin-top: 3px;
+  border: 1.5px solid var(--gold3);
+  border-radius: 3px; background: var(--bg);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px;
+  transition: all .15s;
+}
+.cb.on { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+.cl-t.done { text-decoration: line-through; opacity: .4; }
+
+.hl {
+  background: var(--bg);
+  border-left: 2px solid var(--gold);
+  border-radius: 0 4px 4px 0;
+  padding: 9px 14px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--gold);
+  line-height: 1.6;
+}
+
+.reset-wrap { text-align: center; margin-top: 22px; }
+.reset-btn {
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 8px 20px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.reset-btn:hover { border-color: var(--gold3); color: var(--gold); }
+
+@media (max-width: 520px) {
+  .input-row { flex-direction: column; }
+  .analyze-btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="eyebrow">Funding Intelligence Engine</div>
+    <h1>Grant <span>Analysis</span></h1>
+    <p>Paste any grant URL. One click extracts everything you need — filed to Airtable automatically.</p>
+  </div>
+
+  <div class="input-card">
+    <div class="input-label">Grant URL</div>
+    <div class="input-row">
+      <input class="url-input" type="url" id="urlInput" placeholder="https://grants.example.org/apply/2025" />
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">Analyze Grant →</button>
+    </div>
+    <div class="saved-ok" id="savedOk">✓ Saved to Airtable</div>
+  </div>
+
+  <div class="loader" id="loader">
+    <div class="ring"></div>
+    <span class="loader-lbl">Processing Grant Intelligence</span>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <div class="err-box" id="errBox"></div>
+  <div class="results" id="results"></div>
+
+</div>
+
+<script>
+const GROQ_API_KEY     = "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";
+const AIRTABLE_API_KEY = "patwL1IhniWjGKu2N";
+const AIRTABLE_BASE_ID = "app9sQhZtuJfgqknD";
+
+const SYSTEM_PROMPT = `You are a grant intelligence analyst. Analyze the grant at the provided URL and return ONLY a valid JSON object — no markdown, no backticks, no explanation. Use this exact structure:
+{
+  "grantName": "Full grant name",
+  "funder": "Organization name",
+  "deadline": "YYYY-MM-DD or null",
+  "fundingAmount": "Amount or range as string",
+  "fitScore": 8,
+  "winProbability": "High",
+  "effortLevel": "Medium",
+  "overview": "2-3 sentence summary",
+  "eligibilityRequirements": "Newline-separated bullet points",
+  "evaluationCriteria": "Newline-separated bullet points",
+  "submissionRequirements": "Newline-separated bullet points",
+  "winningStrategy": "3-4 sentences on what wins this grant",
+  "redFlags": "Newline-separated concerns, or empty string",
+  "submissionChecklist": "Newline-separated checklist items",
+  "keyContacts": "Contact info or Not listed",
+  "notes": "Any other relevant info"
+}
+fitScore 1-10 = effort-to-reward ratio. Be specific, extract real data.`;
+
+const STEPS = [
+  'Fetching grant page…',
+  'Parsing eligibility criteria…',
+  'Analyzing evaluation rubric…',
+  'Building submission strategy…',
+  'Writing to Airtable…',
+];
+let stepTimer, stepIdx = 0;
+
+function startSteps() {
+  stepIdx = 0;
+  document.getElementById('steps').innerHTML =
+    STEPS.map((s, i) => `<div class="stp" id="stp${i}">${s}</div>`).join('');
+  stepTimer = setInterval(() => {
+    if (stepIdx > 0) document.getElementById(`stp${stepIdx-1}`)?.classList.replace('on','ok');
+    if (stepIdx < STEPS.length) {
+      document.getElementById(`stp${stepIdx}`)?.classList.add('on');
+      stepIdx++;
+    } else clearInterval(stepTimer);
+  }, 1100);
+}
+function stopSteps() { clearInterval(stepTimer); }
+
+function show(id) { document.getElementById(id).classList.add('show'); }
+function hide(id) { document.getElementById(id).classList.remove('show'); }
+
+async function analyze() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+
+  hide('results'); hide('errBox'); hide('savedOk');
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('urlInput').disabled = true;
+  show('loader');
+  startSteps();
+
+  try {
+    // Use a CORS proxy to fetch the grant page
+    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+    let pageContent = '';
+    try {
+      const pageRes = await fetch(proxyUrl);
+      const pageJson = await pageRes.json();
+      const html = pageJson.contents || '';
+      pageContent = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 12000);
+    } catch(e) {
+      pageContent = `Could not fetch page content. URL: ${url}`;
+    }
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.2,
+        max_tokens: 2000,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `Grant URL: ${url}\n\nPage content:\n${pageContent}` }
+        ]
+      })
+    });
+
+    stopSteps();
+    const groqJson = await groqRes.json();
+    if (groqJson.error) throw new Error(groqJson.error.message);
+
+    const text = groqJson.choices?.[0]?.message?.content || '';
+    const s = text.indexOf('{');
+    const e = text.lastIndexOf('}');
+    if (s === -1) throw new Error('No structured data returned');
+    const grantData = JSON.parse(text.slice(s, e + 1));
+
+    hide('loader');
+    renderResults(grantData);
+
+    // Write to Airtable
+    try {
+      const fields = {
+        "Grant Title": grantData.grantName || "Untitled Grant",
+        "Grant URL": url,
+        "Funder / Organization": grantData.funder || "",
+        "Funding Amount": grantData.fundingAmount || "",
+        "Status": "Reviewing",
+        "Win Probability": grantData.winProbability || "Medium",
+        "Effort Level": grantData.effortLevel || "Medium",
+        "Overview": grantData.overview || "",
+        "Eligibility Requirements": grantData.eligibilityRequirements || "",
+        "Evaluation Criteria": grantData.evaluationCriteria || "",
+        "Submission Requirements": grantData.submissionRequirements || "",
+        "Winning Strategy": grantData.winningStrategy || "",
+        "Red Flags": grantData.redFlags || "",
+        "Submission Checklist": grantData.submissionChecklist || "",
+        "Key Contacts": grantData.keyContacts || "",
+        "Notes": grantData.notes || ""
+      };
+      if (typeof grantData.fitScore === 'number') fields["Fit Score"] = grantData.fitScore;
+      if (grantData.deadline && /^\d{4}-\d{2}-\d{2}$/.test(grantData.deadline)) fields["Deadline"] = grantData.deadline;
+
+      const atRes = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/Grants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AIRTABLE_API_KEY}`
+        },
+        body: JSON.stringify({ fields })
+      });
+      const atJson = await atRes.json();
+      if (!atJson.error) show('savedOk');
+    } catch(_) {}
+
+  } catch (err) {
+    stopSteps();
+    hide('loader');
+    document.getElementById('errBox').textContent = '❌ ' + err.message;
+    show('errBox');
+  }
+
+  document.getElementById('analyzeBtn').disabled = false;
+  document.getElementById('urlInput').disabled = false;
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') analyze();
+});
+
+function winCls(p) {
+  if (!p) return '';
+  const l = p.toLowerCase();
+  return l === 'high' ? 'hi' : l === 'low' ? 'lo' : '';
+}
+
+function toList(text) {
+  if (!text) return '<p style="color:var(--dim)">—</p>';
+  const lines = text.split('\n').map(l => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+  if (lines.length <= 1) return `<p>${escHtml(text)}</p>`;
+  return '<ul>' + lines.map(l => `<li>${escHtml(l)}</li>`).join('') + '</ul>';
+}
+
+function toChecklist(text) {
+  if (!text) return '<p style="color:var(--dim)">—</p>';
+  const lines = text.split('\n').map(l => l.replace(/^[-•*\d.]+\s*/, '').trim()).filter(Boolean);
+  return '<ul class="cl">' + lines.map((l, i) =>
+    `<li>
+      <div class="cb" id="cb${i}" onclick="tick('cb${i}','ct${i}')"></div>
+      <span class="cl-t" id="ct${i}">${escHtml(l)}</span>
+    </li>`
+  ).join('') + '</ul>';
+}
+
+function tick(cbId, ctId) {
+  const cb = document.getElementById(cbId);
+  const ct = document.getElementById(ctId);
+  cb.classList.toggle('on');
+  cb.textContent = cb.classList.contains('on') ? '✓' : '';
+  ct.classList.toggle('done', cb.classList.contains('on'));
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function acc(icon, title, body, open = false) {
+  return `<details ${open ? 'open' : ''}>
+    <summary>
+      <div class="s-icon">${icon}</div>
+      <span class="s-title">${title}</span>
+      <span class="s-arrow">⌄</span>
+    </summary>
+    <div class="acc-body">${body}</div>
+  </details>`;
+}
+
+function renderResults(d) {
+  const el = document.getElementById('results');
+  el.innerHTML = `
+    <div class="grant-head">
+      <div class="grant-title">${escHtml(d.grantName || 'Grant Analysis')}</div>
+      <div class="meta-row">
+        ${d.funder        ? `<span class="meta-chip"><span class="dot"></span>${escHtml(d.funder)}</span>` : ''}
+        ${d.fundingAmount ? `<span class="meta-chip"><span class="dot"></span>${escHtml(d.fundingAmount)}</span>` : ''}
+        ${d.effortLevel   ? `<span class="meta-chip"><span class="dot"></span>Effort: ${escHtml(d.effortLevel)}</span>` : ''}
+      </div>
+    </div>
+    <div class="score-row">
+      <div class="sc">
+        <span class="sc-lbl">Fit Score</span>
+        <span class="sc-val">${d.fitScore ?? '—'}<sub>/10</sub></span>
+      </div>
+      <div class="sc">
+        <span class="sc-lbl">Win Probability</span>
+        <span class="sc-val ${winCls(d.winProbability)}">${escHtml(d.winProbability || '—')}</span>
+      </div>
+      <div class="sc">
+        <span class="sc-lbl">Deadline</span>
+        <span class="sc-val sm">${d.deadline && d.deadline !== 'null' ? escHtml(d.deadline) : 'Unknown'}</span>
+      </div>
+    </div>
+    <div class="accordion">
+      ${acc('📋','Overview', `<p>${escHtml(d.overview||'—')}</p>${d.keyContacts && d.keyContacts!=='Not listed' ? `<div class="hl">Contact: ${escHtml(d.keyContacts)}</div>` : ''}`, true)}
+      ${acc('✓','Eligibility Requirements', toList(d.eligibilityRequirements), true)}
+      ${acc('⚖','Evaluation Criteria', toList(d.evaluationCriteria))}
+      ${acc('📁','Submission Requirements', toList(d.submissionRequirements))}
+      ${acc('🏆','Winning Strategy', `<p>${escHtml(d.winningStrategy||'—')}</p>`)}
+      ${d.redFlags ? acc('⚠','Watch Out For', toList(d.redFlags)) : ''}
+      ${acc('☑','Submission Checklist', toChecklist(d.submissionChecklist), true)}
+      ${d.notes ? acc('🗒','Notes', `<p>${escHtml(d.notes)}</p>`) : ''}
+    </div>
+    <div class="reset-wrap">
+      <button class="reset-btn" onclick="resetApp()">← Analyze Another Grant</button>
+    </div>
+  `;
+  show('results');
+}
+
+function resetApp() {
+  hide('results'); hide('errBox'); hide('savedOk');
+  document.getElementById('urlInput').value = '';
+}
+</script>
+</body>
+</html>
